@@ -1,0 +1,31 @@
+.game-board {
+    display: grid;
+    grid-template-columns: repeat(4, 100px);
+    gap: 10px;
+    justify-content: center;
+  }
+  
+  .stats {
+    margin-bottom: 20px;
+  }
+  
+  button {
+    margin-top: 20px;
+  }
+  
+  .leaderboard {
+    margin-top: 20px;
+  }
+  
+  @media (max-width: 768px) {
+    .game-board {
+      grid-template-columns: repeat(3, 100px);
+    }
+  }
+  
+  @media (max-width: 480px) {
+    .game-board {
+      grid-template-columns: repeat(2, 100px);
+    }
+  }
+  
