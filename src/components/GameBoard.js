@@ -1,20 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Card from './Card';
 import './GameBoard.css';
 import { Modal, Button } from 'react-bootstrap';
-import flipSoundFile from '../assets/flip.mp3';
-import matchSoundFile from '../assets/match.mp3';
 
 const shuffleCards = (cards) => {
   return cards.concat(cards).sort(() => Math.random() - 0.5).map((card, index) => ({ ...card, id: index }));
 };
-
-// Move cardValues outside the component to avoid redeclaring in every render
-const cardValues = [
-  { value: 1 }, { value: 2 }, { value: 3 },
-  { value: 4 }, { value: 5 }, { value: 6 },
-  { value: 7 }, { value: 8 }
-];
 
 const GameBoard = () => {
   const [cards, setCards] = useState([]);
@@ -24,48 +15,21 @@ const GameBoard = () => {
   const [time, setTime] = useState(0);
   const [gameActive, setGameActive] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [bestScore, setBestScore] = useState(localStorage.getItem('bestScore') || Number.MAX_VALUE);
+  const [bestScore, setBestScore] = useState(localStorage.getItem('bestScore') || 0);
   const [leaderboard, setLeaderboard] = useState(JSON.parse(localStorage.getItem('leaderboard')) || []);
 
-  const flipSound = new Audio(flipSoundFile);
-  const matchSound = new Audio(matchSoundFile);
+  // Memoize cardValues so it doesn't get recreated on every render
+  const cardValues = useMemo(() => [
+    { value: 1 },{ value: 2 },
+    { value: 2 }, { value: 3 },
+    { value: 4 }, { value: 5 }, { value: 6 },
+    { value: 7 },
+  ], []);
 
-  // Define updateLeaderboard above its usage
-  const updateLeaderboard = useCallback((moves, time) => {
-    const newEntry = { moves, time, date: new Date().toLocaleString() };
-    const updatedLeaderboard = [...leaderboard, newEntry].sort((a, b) => a.moves - b.moves);
-    setLeaderboard(updatedLeaderboard);
-    localStorage.setItem('leaderboard', JSON.stringify(updatedLeaderboard));
-  }, [leaderboard]);
 
-  useEffect(() => {
-    setCards(shuffleCards(cardValues));
-  }, []);
-
-  useEffect(() => {
-    if (gameActive) {
-      const interval = setInterval(() => setTime((prevTime) => prevTime + 1), 1000);
-      return () => clearInterval(interval);
-    }
-  }, [gameActive]);
-
-  const handleCardClick = (card) => {
-    if (flippedCards.length === 2 || matchedCards.includes(card.id)) return;
-
-    flipSound.play();
-    setFlippedCards([...flippedCards, card]);
-
-    if (flippedCards.length === 1) {
-      setMoves(moves + 1);
-
-      if (flippedCards[0].value === card.value) {
-        matchSound.play();
-        setMatchedCards([...matchedCards, flippedCards[0].id, card.id]);
-        setFlippedCards([]);
-      } else {
-        setTimeout(() => setFlippedCards([]), 1000);
-      }
-    }
+  const handleCloseModal = () => {
+    console.log("coem")
+    setShowModal(false);
   };
 
   const restartGame = () => {
@@ -77,25 +41,75 @@ const GameBoard = () => {
     setGameActive(true);
   };
 
+
+
+
+  const updateLeaderboard = (moves, time) => {
+
+    console.log('Com eheres')
+    const newEntry = { moves, time, date: new Date().toLocaleString() };
+    console.log(newEntry)
+    const updatedLeaderboard1 = [...leaderboard, newEntry]
+      .sort((a, b) => a.moves - b.moves)
+      .slice(0, 3); // Keep only top 3 entries
+    setLeaderboard(updatedLeaderboard1);
+    localStorage.setItem('leaderboard', JSON.stringify(updatedLeaderboard1));
+    console.log(leaderboard)
+  };
+
+  // Shuffle cards when the component mounts
+  useEffect(() => {
+    setCards(shuffleCards(cardValues));
+  }, [cardValues]);
+
+  useEffect(() => {
+    if (gameActive) {
+      const interval = setInterval(() => setTime(time + 1), 1000);
+      return () => clearInterval(interval);
+    }
+  }, [time, gameActive]);
+
   useEffect(() => {
     if (matchedCards.length === cards.length) {
       setGameActive(false);
       setShowModal(true);
-      updateLeaderboard(moves, time);
-      if (moves < bestScore) {
+      if(moves != 0)
+      {
+       updateLeaderboard(moves, time); 
+      }
+            if (moves > bestScore) {
         setBestScore(moves);
         localStorage.setItem('bestScore', moves);
       }
+      // return;
     }
-  }, [matchedCards, cards, moves, bestScore, updateLeaderboard, time]);
+  }, [matchedCards, cards, moves, bestScore, time]);
 
+
+
+  const handleCardClick = (card) => {
+    if (flippedCards.length === 2 || matchedCards.includes(card.id)) return;
+
+    setFlippedCards([...flippedCards, card]);
+
+    if (flippedCards.length === 1) {
+      setMoves(moves + 1);
+
+      if (flippedCards[0].value === card.value) {
+        setMatchedCards([...matchedCards, flippedCards[0].id, card.id]);
+        setFlippedCards([]);
+      } else {
+        setTimeout(() => setFlippedCards([]), 1000);
+      }
+    }
+  };
 
   return (
     <div>
       <div className="stats">
         <p>Moves: {moves}</p>
         <p>Time: {time} seconds</p>
-        <p>Best Score: {bestScore !== Number.MAX_VALUE ? bestScore : 'N/A'}</p>
+        <p>Best Score: {bestScore && bestScore > 0 ? bestScore : 0}</p>
       </div>
 
       <div className="game-board">
@@ -110,29 +124,40 @@ const GameBoard = () => {
         ))}
       </div>
 
+
+      {time == 0 && <Button onClick={restartGame} className="mt-3 btn-primary">Start Game</Button>}
+
       <Button onClick={restartGame} className="mt-3 btn-primary">Restart Game</Button>
 
       {/* Leaderboard */}
       <div className="leaderboard">
-        <h3>Leaderboard</h3>
+        <h3>Top 3 Leaderboard</h3>
         <ul>
-          {leaderboard.slice(0, 5).map((entry, index) => (
-            <li key={index}>Moves: {entry.moves}, Time: {entry.time} sec, Date: {entry.date}</li>
+          {leaderboard.length > 0 && leaderboard.map((entry, index) => (
+            
+            <li key={index}>Moves: 
+            
+            
+            {entry.moves }, Time: {entry.time} sec, Date: {entry.date}
+            
+            
+            
+            </li>
           ))}
         </ul>
       </div>
 
       {/* Modal */}
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
+      <Modal show={showModal} onHide={handleCloseModal}>
         <Modal.Header closeButton>
           <Modal.Title>Congratulations!</Modal.Title>
         </Modal.Header>
         <Modal.Body>
           <p>You completed the game in {moves} moves and {time} seconds!</p>
-          {moves < bestScore && <p>New Best Score!</p>}
+          {moves > bestScore && <p>New Best Score!</p>}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
+          <Button variant="secondary" onClick={handleCloseModal}>Close</Button>
           <Button variant="primary" onClick={restartGame}>Play Again</Button>
         </Modal.Footer>
       </Modal>
